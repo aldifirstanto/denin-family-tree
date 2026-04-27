@@ -577,14 +577,18 @@ function resolveKinshipTerm(path, fromId, dataMap) {
   } else if (ups === 1 && downs === 1) {
     baseTerm = siblingTerm(fromId, toId);
   } else if (ups >= 2 && downs === 1) {
-    // Uncle/aunt (or higher)
+    // Uncle/aunt generation ladder.
     if (ups === 2) {
+      // Parent's sibling -> Pakde/Paklik/Bude/Bulik by seniority.
       const myParentId = corePath[0].to;
       const targetOlder = isOlderById(seniorityId(toId, dataMap), seniorityId(myParentId, dataMap));
       if (male) baseTerm = targetOlder ? 'Pakde' : 'Paklik';
       else baseTerm = targetOlder ? 'Bude' : 'Bulik';
+    } else if (ups === 3) {
+      // Grandparent's sibling -> treated as grandparent generation in Javanese daily address.
+      baseTerm = male ? 'Mbah Kakung' : 'Mbah Putri';
     } else {
-      baseTerm = `${ups - 2} tingkat di atas paman/bibi (${male ? 'laki-laki' : 'perempuan'})`;
+      baseTerm = `${ups - 3} tingkat di atas Mbah (${male ? 'laki-laki' : 'perempuan'})`;
     }
   } else if (ups === 1 && downs >= 2) {
     // Nephew/niece (or lower)
