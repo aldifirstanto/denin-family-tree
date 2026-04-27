@@ -600,9 +600,25 @@ function resolveKinshipTerm(path, fromId, dataMap) {
       baseTerm = descendantTerm(downs - 1);
     }
   } else if (ups >= 2 && downs >= 2) {
-    const myAnchorId = corePath[ups - 2]?.to;      // my child of common ancestor
-    const theirAnchorId = corePath[ups]?.to;       // their child of common ancestor
-    baseTerm = cousinTerm(ups, downs, myAnchorId, theirAnchorId);
+    // One-generation-above cousin line (e.g. parent's cousin) is commonly
+    // addressed as uncle/aunt generation in daily usage.
+    if (ups === downs + 1) {
+      if (ups === 3 && downs === 2) {
+        // Use each side's branch anchor under the common ancestor to decide
+        // older/younger uncle generation (not the final person's own birth order).
+        const myBranchAnchor = corePath[ups - 2]?.to;
+        const theirBranchAnchor = corePath[ups]?.to;
+        const targetOlder = isOlderById(seniorityId(theirBranchAnchor, dataMap), seniorityId(myBranchAnchor, dataMap));
+        if (male) baseTerm = targetOlder ? 'Pakde' : 'Paklik';
+        else baseTerm = targetOlder ? 'Bude' : 'Bulik';
+      } else {
+        baseTerm = male ? 'Mbah Kakung' : 'Mbah Putri';
+      }
+    } else {
+      const myAnchorId = corePath[ups - 2]?.to;      // my child of common ancestor
+      const theirAnchorId = corePath[ups]?.to;       // their child of common ancestor
+      baseTerm = cousinTerm(ups, downs, myAnchorId, theirAnchorId);
+    }
   }
 
   if (!baseTerm) return { term: 'Kerabat keluarga', rawPath: rawStr() };
