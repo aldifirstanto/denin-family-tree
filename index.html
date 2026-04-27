@@ -591,9 +591,14 @@ function resolveKinshipTerm(path, fromId, dataMap) {
       baseTerm = `${ups - 3} tingkat di atas Mbah (${male ? 'laki-laki' : 'perempuan'})`;
     }
   } else if (ups === 1 && downs >= 2) {
-    // Nephew/niece (or lower)
-    if (downs === 2) baseTerm = male ? 'Keponakan laki-laki' : 'Keponakan perempuan';
-    else baseTerm = `${downs - 2} tingkat di bawah keponakan (${male ? 'laki-laki' : 'perempuan'})`;
+    // Sibling descendants.
+    if (downs === 2) {
+      baseTerm = male ? 'Keponakan laki-laki' : 'Keponakan perempuan';
+    } else {
+      // In Javanese daily addressing, deeper descendants of siblings are commonly
+      // addressed at grandchild generation (putu/cucu ladder).
+      baseTerm = descendantTerm(downs - 1);
+    }
   } else if (ups >= 2 && downs >= 2) {
     const myAnchorId = corePath[ups - 2]?.to;      // my child of common ancestor
     const theirAnchorId = corePath[ups]?.to;       // their child of common ancestor
