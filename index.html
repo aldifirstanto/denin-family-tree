@@ -252,17 +252,23 @@ async function fetchFromSupabase() {
   return res.json();
 }
 
+function normalizeId(val) {
+  return String(val ?? '')
+    .replace(/[\u200B-\u200D\uFEFF]/g, '')
+    .trim();
+}
+
 function splitPipe(val) {
   if (!val || val === '' || val === '0') return [];
   return val
     .split('|')
-    .map(v => String(v).trim())
+    .map(v => normalizeId(v))
     .filter(v => v && v !== '0');
 }
 
 function rowsToChartData(rows) {
   return rows.map(row => ({
-    id: String(row.id),
+    id: normalizeId(row.id),
     data: { 'first name': row.first_name ?? '', 'last name': row.last_name ?? '', birthday: row.birthday ? String(row.birthday) : '', gender: row.gender ?? '', avatar: row.avatar ?? '' },
     rels: { father: splitPipe(row.parents)[0] ?? null, mother: splitPipe(row.parents)[1] ?? null, spouses: splitPipe(row.spouses), children: splitPipe(row.children) }
   }));
@@ -409,24 +415,53 @@ function isMaleId(id, dataMap)  { return getGender(id, dataMap) === 'M'; }
 // ─── BFS shortest path ────────────────────────────────────────────────────
 function findPath(fromId, toId, data) {
   if (fromId === toId) return [];
+
   const adj = new Map();
+  const addEdge = (a, b, rel) => {
+    if (!a || !b) return;
+    const from = normalizeId(a);
+    const to = normalizeId(b);
+    if (!from || !to) return;
+    if (!adj.has(from)) adj.set(from, []);
+    const list = adj.get(from);
+    if (!list.some(e => e.id === to && e.rel === rel)) list.push({ id: to, rel });
+  };
+
   data.forEach(d => {
-    const nb = adj.get(d.id) || [];
-    if (d.rels.father) nb.push({ id: d.rels.father, rel: 'parent' });
-    if (d.rels.mother) nb.push({ id: d.rels.mother, rel: 'parent' });
-    d.rels.children.forEach(c => nb.push({ id: c, rel: 'child' }));
-    d.rels.spouses.forEach(s => nb.push({ id: s, rel: 'spouse' }));
-    adj.set(d.id, nb);
+    const selfId = normalizeId(d.id);
+    if (!adj.has(selfId)) adj.set(selfId, []);
+
+    if (d.rels.father) {
+      addEdge(selfId, d.rels.father, 'parent');
+      addEdge(d.rels.father, selfId, 'child');
+    }
+    if (d.rels.mother) {
+      addEdge(selfId, d.rels.mother, 'parent');
+      addEdge(d.rels.mother, selfId, 'child');
+    }
+
+    d.rels.children.forEach(childId => {
+      addEdge(selfId, childId, 'child');
+      addEdge(childId, selfId, 'parent');
+    });
+
+    d.rels.spouses.forEach(spouseId => {
+      addEdge(selfId, spouseId, 'spouse');
+      addEdge(spouseId, selfId, 'spouse');
+    });
   });
+
   const visited = new Set([fromId]);
-  const queue   = [{ id: fromId, path: [] }];
+  const queue = [{ id: fromId, path: [] }];
+
   while (queue.length) {
     const { id, path } = queue.shift();
     for (const { id: nid, rel } of (adj.get(id) || [])) {
       if (visited.has(nid)) continue;
       const np = [...path, { from: id, to: nid, rel }];
       if (nid === toId) return np;
-      visited.add(nid); queue.push({ id: nid, path: np });
+      visited.add(nid);
+      queue.push({ id: nid, path: np });
     }
   }
   return null;
@@ -571,7 +606,7 @@ function resolveKinshipTerm(path, fromId, dataMap) {
 
 // ─── Find handler ─────────────────────────────────────────────────────────
 relFindBtn.addEventListener('click', () => {
-  const idA = relSelectA.value, idB = relSelectB.value;
+  const idA = normalizeId(relSelectA.value), idB = normalizeId(relSelectB.value);
   if (!idA || !idB || idA === idB) return;
 
   const dataMap = new Map(chartData.map(d => [d.id, d]));
